@@ -1,0 +1,198 @@
+version: '3.8'
+
+name: private-local-ai
+
+services:
+
+  local-ai:
+    container_name: local-ai-api
+    image: quay.io/go-skynet/local-ai:v2.0.0 # was: quay.io/go-skynet/local-ai:v1.30.0
+    restart: unless-stopped
+    environment:
+      - 'THREADS=4' # Set this to the number of physical CPU's not threads
+      - 'CONTEXT_SIZE=4096' # The historic memory for conversations
+      - 'MODELS_PATH=/models' # Location of the models folder in the image
+      - 'DEBUG=true' # More info for builds and output when tailing logs
+      - 'GALLERIES=[{"name":"model-gallery", "url":"github:go-skynet/model-gallery/index.yaml"}, {"url": "github:go-skynet/model-gallery/huggingface.yaml","name":"huggingface"}]'
+      - 'PRELOAD_MODELS=[{"url": "github:go-skynet/model-gallery/openllama-7b-open-instruct.yaml", "name": "openllama-7b"}, {"id": "model-gallery@mistral"}]' # Preload (auto-download) different models. See: https://github.com/go-skynet/model-gallery
+    volumes:
+      - ./local-ai:/models:cached # Maps the model folder to this project's models folder
+    ports:
+      - 8080:8080 # OpenAI compatible REST API will be on this port (outside:inside)
+    command: ["/usr/bin/local-ai" ]
+
+  chatbot-ui:
+    container_name: chatbot-ui
+    image: ghcr.io/mckaywrigley/chatbot-ui:main
+    restart: unless-stopped
+    environment:
+      - 'NEXT_PUBLIC_DEFAULT_SYSTEM_PROMPT="Below is an instruction that describes a task. Write a response that appropriately completes the request. Use markdown where appropriate."'
+      - 'NEXT_PUBLIC_DEFAULT_TEMPERATURE="0.7"'
+      - 'OPENAI_API_KEY=sk-XXXXXXXXXXXXXXXXXXXX' # Not required by LocalAI etc.
+      - 'OPENAI_API_HOST=http://local-ai-api:8080' # LocalAI API endpoint
+      # - 'OPENAI_API_HOST=http://text-generation-webui:5001' # Alternative - Text Generation UI API server
+      # - 'DEFAULT_MODEL=openllama-7b' # Specify the default model to use ("gpt-3.5-turbo" is default) doesn't tend to work anyway
+    ports:
+      - 3001:3000 # ChatBot UI will be on this port (outside:inside)
+
+  text-generation-webui:
+    image: atinoda/text-generation-webui:llama-cpu # Specify variant as the :tag (I'm using CPU only version - llama-cpu)
+    container_name: text-generation-webui
+    restart: unless-stopped
+    environment:
+        # Custom launch args (e.g., --model MODEL_NAME). 
+        # If you haven't downloaded any models, remove --model MODEL or server won't boot.
+      - EXTRA_LAUNCH_ARGS="--listen --verbose --api --extensions api openai" #  --model mistral-7b-openorca.Q4_K_M.gguf 
+    ports:
+      - 7860:7860  # Default GUI port (browser UI used for model settings and chat)
+      - 5000:5000  # Default TGUI-API port (needs api extension running)
+      - 5005:5005  # Default streaming port
+      - 5001:5001  # Default OpenAI compatible API port (needs openai extension running - used by Chatbot UI)
+    volumes:
+      - ./text-generation-webui/chatlogs/Assistant:/app/logs/chat/Assistant
+      - ./text-generation-webui/characters:/app/characters
+      - ./text-generation-webui/loras:/app/loras
+      - ./text-generation-webui/models:/app/models
+      - ./text-generation-webui/presets:/app/presets
+      - ./text-generation-webui/prompts:/app/prompts
+      - ./text-generation-webui/training:/app/training
+      - ./text-generation-webui/settings:/app/settings
+      - ./text-generation-webui/extensions:/app/extensions  # Persist all extensions
+      - type: bind
+        source: ./text-generation-webui/settings.yaml
+        target: /app/settings.yaml
+        read_only: false
+    logging:
+      driver:  json-file
+      options:
+        max-file: "3"   # number of files or file count
+        max-size: '10m'
+
+  ollama-webui:
+    container_name: ollama-webui
+    restart: unless-stopped
+    image: ollamawebui/ollama-webui
+    ports:
+      - '3100:8080'
+    environment:
+      - 'OLLAMA_ORIGINS=*'
+      - 'OLLAMA_HOST=0.0.0.0'
+
+  ollama:
+    container_name: ollama
+    restart: unless-stopped
+    image: ollama/ollama
+    volumes:
+      - './ollama:/root/.ollama'
+    ports:
+      - '11434:11434'
+    # environment:
+      # - HTTPS_PROXY=http://proxy.example.com # Ensure the certificate is installed as a system certificate when using HTTPS. This may require a new Docker image when using a self-signed certificate.
+      # - OLLAMA_HOST=0.0.0.0:11434 # Bind to machine IP
+      # - OLLAMA_ORIGINS=http://192.168.1.1:*,https://example.com # Allow origins (CORS)
+
+  big-agi:
+    container_name: big-agi
+    restart: unless-stopped
+    image: ghcr.io/enricoros/big-agi:main
+    ports:
+      - "3456:3000"
+    command: [ "next", "start", "-p", "3000" ] 
+
+  mongo:
+    image: mongo
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./whishper_data/db_data:/data/db
+      - ./whishper_data/db_data/logs/:/var/log/mongodb/
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER:-whishper}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASS:-whishper}
+    expose:
+      - 27017
+    command: ['--logpath', '/var/log/mongodb/mongod.log']
+
+  translate:
+    container_name: whisper-libretranslate
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    # volumes: # I get permissions errors if I uncomment these volumes.
+      # - ./whishper_data/libretranslate/data:/home/libretranslate/.local/share
+      # - ./whishper_data/libretranslate/cache:/home/libretranslate/.local/cache
+    env_file:
+      - .env
+    tty: true
+    environment:
+      LT_DISABLE_WEB_UI: True
+      LT_UPDATE_MODELS: True
+    expose:
+      - 5000
+    networks:
+      default:
+        aliases:
+          - translate
+    healthcheck:
+      test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
+      interval: 2s
+      timeout: 3s
+      retries: 5
+
+  whishper:
+    pull_policy: always
+    image: pluja/whishper:${WHISHPER_VERSION:-latest}
+    env_file:
+      - .env
+    volumes:
+      - ./whishper_data/uploads:/app/uploads
+      - ./whishper_data/logs:/var/log/whishper
+    container_name: whishper
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - whishper
+    ports:
+      - 8082:80
+    depends_on:
+      - mongo
+      - translate
+    environment:
+      PUBLIC_INTERNAL_API_HOST: "http://127.0.0.1:80"
+      PUBLIC_TRANSLATION_API_HOST: ""
+      PUBLIC_API_HOST: ${WHISHPER_HOST:-}
+      PUBLIC_WHISHPER_PROFILE: cpu
+      WHISPER_MODELS_DIR: /app/models
+      UPLOAD_DIR: /app/uploads
+
+  # chatgpt_web:
+  #   container_name: chatgpt-web
+  #   image: benwilcock/chatgpt-web
+  #   restart: always
+  #   ports:
+  #     - 5173:5173
+  #   volumes:
+  #     - .:/app
+  #   environment:
+  #     - VITE_API_BASE=http://192.168.1.80:1234
+  #     # - VITE_ENDPOINT_COMPLETIONS=/v1/chat/completions
+  #     # - VITE_ENDPOINT_MODELS=/v1/models
+
+  # vllm-openai: # Requires GPU as of DEC 2023 :(
+  #   container_name: vllm-openai-api
+  #   image: vllm/vllm-openai:latest
+  #   # runtime: nvidia
+  #   # environment:
+  #   #   HUGGING_FACE_HUB_TOKEN: <secret>
+  #   volumes:
+  #     - ./vllm:/root/.cache/huggingface
+  #   ports:
+  #     - "8010:8000"
+  #   # ipc: host
+  #   command: --model mistralai/Mixtral-8x7B-Instruct-v0.1 --trust-remote-code
+  #   shm_size: 48g
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 48g

@@ -1,0 +1,30 @@
+{
+    "internal": [
+        [
+            "<|BEGIN-VISIBLE-CHAT|>",
+            "How can I help you today?"
+        ],
+        [
+            "tell me about \"docker stats\"",
+            "Docker Stats is a command used to display the resource usage of containers, such as CPU, memory, and network IO statistics. To view this information, simply run the following command in your terminal: `docker stats [container_name or container_id]`. This will provide you with real-time metrics about the selected container's resources utilization."
+        ],
+        [
+            "is there a way to see more details of CPU utilisation?",
+            "Yes, to get detailed information on CPU usage for a specific container, run the command `docker stats --cpu [container_name or container_id]`. This will display both the total and percentage usage of CPU resources by the container. You can also use the option `--no-stream` to view historical data since Docker starts the container."
+        ]
+    ],
+    "visible": [
+        [
+            "",
+            "How can I help you today?"
+        ],
+        [
+            "tell me about &quot;docker stats&quot;",
+            "Docker Stats is a command used to display the resource usage of containers, such as CPU, memory, and network IO statistics. To view this information, simply run the following command in your terminal: `docker stats [container_name or container_id]`. This will provide you with real-time metrics about the selected container&#x27;s resources utilization."
+        ],
+        [
+            "is there a way to see more details of CPU utilisation?",
+            "Yes, to get detailed information on CPU usage for a specific container, run the command `docker stats --cpu [container_name or container_id]`. This will display both the total and percentage usage of CPU resources by the container. You can also use the option `--no-stream` to view historical data since Docker starts the container."
+        ]
+    ]
+}

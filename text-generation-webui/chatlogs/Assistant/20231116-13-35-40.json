@@ -1,0 +1,22 @@
+{
+    "internal": [
+        [
+            "<|BEGIN-VISIBLE-CHAT|>",
+            "How can I help you today?"
+        ],
+        [
+            "Tell me how running large language models locally offline can improve privacy and increase customisation and innovation.",
+            "Running large language models (LLMs) locally offline has several benefits, including improved privacy and increased customization and innovation. Here's a breakdown of these advantages:\n\n1. Privacy Protection:\n- No sensitive data is sent to third-party servers or cloud services, reducing the risk of breaches or unauthorized access.\n- Locally stored models can be more secure due to stronger encryption and protection methods offered by local devices.\n\n2. Customization:\n- Users can modify or train their own LLMs to suit specific needs and preferences without relying on a centralized service that may"
+        ]
+    ],
+    "visible": [
+        [
+            "",
+            "How can I help you today?"
+        ],
+        [
+            "Tell me how running large language models locally offline can improve privacy and increase customisation and innovation.",
+            "Running large language models (LLMs) locally offline has several benefits, including improved privacy and increased customization and innovation. Here&#x27;s a breakdown of these advantages:\n\n1. Privacy Protection:\n- No sensitive data is sent to third-party servers or cloud services, reducing the risk of breaches or unauthorized access.\n- Locally stored models can be more secure due to stronger encryption and protection methods offered by local devices.\n\n2. Customization:\n- Users can modify or train their own LLMs to suit specific needs and preferences without relying on a centralized service that may"
+        ]
+    ]
+}
